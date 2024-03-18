@@ -34,11 +34,11 @@ class client(object):
         self.args.extend(["-d", str(d)])
         self.args.extend(["{}".format(server)])
 
-        self.log_file_path, log_file = self.create_log()
-        print self.args
+        self.log_file_path, self.log_file = self.create_log()
+        print(self.args)
         
-        self.p = subprocess.Popen(self.args, stdout=log_file)
-        log_file.close()
+        self.p = subprocess.Popen(self.args, stdout=self.log_file)
+        self.log_file.close()
 
     def stop(self):
         while self.process.poll() is None:
@@ -89,3 +89,4 @@ if __name__ == '__main__':
 #        rate.append(rate_base + i*10);
 
     client_list = start_clients(nb_nodes, server_port, client_port)
+

@@ -48,20 +48,21 @@ def parse_file(head, number, bimodal, dir):
     tot_drop = tot_sent-tot_recv
     tot_miss = tot_sent-tot_made
 
-    print "[{}]parsed file:                {} - {}".format(bimodal, "mcb_"+str(head), "mcb_"+str(head+number-1))
-    print "[{}]tail latecny:               {} us".format(bimodal, tot[tail])
-    print "[{}]avgerage latency:           {} us".format(bimodal, res_avg/length)
-    print "[{}]MIN latency:                {} us".format(bimodal, res_min)
-    print "[{}]MAX latency:                {} us".format(bimodal, res_max)
-    print "[{}]number of RTTs measured:    {}".format(bimodal, tot_recv)
-    print "[{}]Total request sent:         {}".format(bimodal, tot_sent)
-    print "[{}]number of requests dropped: {}".format(bimodal, tot_drop)
-    print "[{}]number of deadline made:    {}".format(bimodal, tot_made)
-    print "[{}]% of deadline missed:       {:.2f}".format(bimodal, (tot_miss)*100/tot_sent)
-    print "-----------------------------------------------------------"
+    print("[{}]parsed file:                {} - {}".format(bimodal, "mcb_"+str(head), "mcb_"+str(head+number-1)))
+    print("[{}]tail latecny:               {} us".format(bimodal, tot[tail]))
+    print("[{}]avgerage latency:           {} us".format(bimodal, res_avg/length))
+    print("[{}]MIN latency:                {} us".format(bimodal, res_min))
+    print("[{}]MAX latency:                {} us".format(bimodal, res_max))
+    print("[{}]number of RTTs measured:    {}".format(bimodal, tot_recv))
+    print("[{}]Total request sent:         {}".format(bimodal, tot_sent))
+    print("[{}]number of requests dropped: {}".format(bimodal, tot_drop))
+    print("[{}]number of deadline made:    {}".format(bimodal, tot_made))
+    print("[{}]% of deadline missed:       {:.2f}".format(bimodal, (tot_miss)*100/tot_sent))
+    print("-----------------------------------------------------------")
 
 if __name__ == "__main__":
     s_file = 11211
     nb = int(sys.argv[1])
     dir = sys.argv[2]
     parse_file(s_file, nb, "res", dir)
+
