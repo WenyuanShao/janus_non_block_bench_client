@@ -11,6 +11,7 @@ z = 135
 d = 30
 #rate_base = 10;
 flow_per_core = 50
+rate = 10000
 #rate=[]
 
 class client(object):
@@ -29,7 +30,7 @@ class client(object):
         self.args.extend(["-z", str(z)])
         self.args.extend(["-u", str(server_port)])
         self.args.extend(["-f", str(client_port)])
-        self.args.extend(["-r", str(25)])
+        self.args.extend(["-r", str(rate)])
         self.args.extend(["-d", str(d)])
         self.args.extend(["{}".format(server)])
 
