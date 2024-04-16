@@ -6,12 +6,12 @@ cur_core = 0
 nb_cores = 1
 server = "10.10.1.2"
 t = 1
-k = 100
+k = 1
 z = 135
-d = 30
+d = 10
 #rate_base = 10;
 flow_per_core = 50
-rate = 10000
+rate = 500000
 #rate=[]
 
 class client(object):
@@ -82,7 +82,7 @@ if __name__ == '__main__':
     server = "10.10.1.2"
     nb_nodes = args.nb_nodes if args.nb_nodes else 1
     nb_cores = args.nb_cores if args.nb_cores else 4
-    server_port = args.server_port if args.server_port else 6
+    server_port = args.server_port if args.server_port else 11212
     client_port = 11211
 
 #    for i in range(flow_per_core):

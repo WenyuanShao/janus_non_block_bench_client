@@ -560,7 +560,7 @@ static void conn_init(conn_t *conn, int maxoutstanding, int maxmsgsize,
 
 static inline int compose_get(char *buf, int bufsize, int k) {
 	//printf("aaaaaaaaaaaaa: %d\n", bufsize);
-  return snprintf(buf, bufsize, "get " KEYPREFIX "-%06d\r\n", spin_time);
+  return snprintf(buf, bufsize, "get " KEYPREFIX "-%06d\r\n", k);
 }
 
 static inline int compose_set(char *buf, int bufsize, int k) {
@@ -898,7 +898,7 @@ static inline int parse_udp_reply(const char *dgram, int len,
 		      memcmp(reply, "CLIENT_ERROR", 12) == 0 ||
 		      memcmp(reply, "SERVER_ERROR", 12) == 0) {
 			  /* value was not found or an error occurred */
-			  return 0;
+			return 0;
 		  }
 		  else {
 			  /* invalid reply */
@@ -964,7 +964,6 @@ static inline int dgram_ap_send(dgram_ap_t *ap, reqtype_t t) {
 
   to_udp_header(buf, ap->reqs.nextrqid, nreplyports);
   
-  //printf("!!!!!!!!!!!%d\n", sizeof(buf)-8);
   if (t == req_get) {
 	  dgsize = compose_get(buf+8, sizeof(buf)-8, k) + 8;
   } else {
@@ -975,6 +974,7 @@ static inline int dgram_ap_send(dgram_ap_t *ap, reqtype_t t) {
   rv = sendto(ap->s, buf, dgsize, 0,
               (struct sockaddr*)&hostaddr_udp, sizeof(hostaddr_udp));
   if (rv < dgsize) {
+//if (rv < 0) printf("sent: %d ", ap->s);
     if (errno != EWOULDBLOCK)
       die("Failed to write to a UDP socket: %s\n", strerror(errno));
     return -1;
@@ -985,7 +985,7 @@ static inline int dgram_ap_send(dgram_ap_t *ap, reqtype_t t) {
   return 0;
 }
 
-
+int recvd = 0;
 /* Try to receive a datagram from ap->s. If a datagram is available,
    parse it and update the request wheel and statistics counters.
    Returns 0 if a datagram was read, otherwise -1. Sets errno to
@@ -1015,6 +1015,7 @@ begin:
     ap->reqs.th->stats[req_get].nbogus++;
     return 0;
   }
+recvd++;
 
   ap->rcvbuf[dglen]='\0';
 
@@ -1273,8 +1274,9 @@ static void *thread_main(void *arg) {
       if (q[t].size > 0) {
         q[t].current = (cycle_timer() - th->tstart) / q[t].size;
         if (q[t].last < q[t].current) {
-          if (th->udp.s >= 0)
+          if (th->udp.s >= 0) {
 		  rv = dgram_ap_send(&th->udp, t);
+		}
           else {
 		  assert(0);
             rv = conn_send(&th->conns[nextconn], t, random()%nkeys);
@@ -1285,7 +1287,6 @@ static void *thread_main(void *arg) {
         }
       }
     }
-
     thread_process_events(th);
 
   } while (!th->done);
@@ -1500,8 +1501,11 @@ int main(int argc, char *argv[]) {
       break;
 
     case 'r':
-      rates[req_get] = atoi(optarg);
-      if (rates[req_get] <= 0) {
+      int tot_rate = atoi(optarg);
+      rates[req_get] = (int)tot_rate * 0.9;
+      //rates[req_get] = 1;
+      rates[req_set] = (int)tot_rate * 0.1;
+      if (tot_rate <= 0) {
         die("Invalid number of requests per second: %s\n", optarg);
       }
 	  deadline = (unsigned long long)1000000 / rates[req_get];
