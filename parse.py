@@ -6,7 +6,7 @@ import numpy as np
 s_file = 0
 num = 0
 
-def parse_file(head, number, bimodal, dir):
+def parse_file(head, number, reqtype, dir):
     res_avg = 0
     tail = 0
     tot = []
@@ -24,45 +24,47 @@ def parse_file(head, number, bimodal, dir):
         filename = dir+"/mcb_"+str(idx)
         with open(filename, "r") as f:
             for line in f:
-                if line.startswith("RTT:"):
+                if line.startswith(reqtype+":"):
                     temp = int(line.split()[1].strip())
                     res_min = min(res_min, temp);
                     res_max = max(res_max, temp);
                     res_avg += temp
                     length += 1
                     tot.append(temp)
-                elif line.startswith("Requests sent"):
+                elif line.startswith(reqtype+" sent"):
                     temp = int(line.split(None)[-1].strip())
                     tot_sent += temp
-                elif line.startswith("Deadline made"):
+                '''
+                elif line.startswith(reqtype+" Deadline made"):
                     temp = int(line.split(None)[-1].strip())
                     tot_made += temp
-                elif line.startswith("Measured RTTs"):
+                elif line.startswith(reqtype+" Measured RTTs"):
                     temp = int(line.split(None)[-1].strip())
                     tot_recv += temp
-
+                '''
     tot.sort()
-    print(length)
-    assert(length > 0)
     tail = int(length*0.99)
     tot_drop = tot_sent-tot_recv
     tot_miss = tot_sent-tot_made
 
-    print("[{}]parsed file:                {} - {}".format(bimodal, "mcb_"+str(head), "mcb_"+str(head+number-1)))
-    print("[{}]tail latecny:               {} us".format(bimodal, tot[tail]))
-    print("[{}]avgerage latency:           {} us".format(bimodal, res_avg/length))
-    print("[{}]MIN latency:                {} us".format(bimodal, res_min))
-    print("[{}]MAX latency:                {} us".format(bimodal, res_max))
-    print("[{}]number of RTTs measured:    {}".format(bimodal, tot_recv))
-    print("[{}]Total request sent:         {}".format(bimodal, tot_sent))
-    print("[{}]number of requests dropped: {}".format(bimodal, tot_drop))
-    print("[{}]number of deadline made:    {}".format(bimodal, tot_made))
-    print("[{}]% of deadline missed:       {:.2f}".format(bimodal, (tot_miss)*100/tot_sent))
+    print("[{}]parsed file:                {} - {}".format(reqtype, "mcb_"+str(head), "mcb_"+str(head+number-1)))
+    print("[{}]tail latecny:               {} us".format(reqtype, tot[tail] if length else 0))
+    print("[{}]avgerage latency:           {} us".format(reqtype, res_avg/length if length else 0))
+    print("[{}]MIN latency:                {} us".format(reqtype, res_min))
+    print("[{}]MAX latency:                {} us".format(reqtype, res_max))
+    print("[{}]number of RTTs measured:    {}".format(reqtype, tot_recv))
+    print("[{}]Total request sent:         {}".format(reqtype, tot_sent))
+    print("[{}]number of requests dropped: {}".format(reqtype, tot_drop))
+    '''
+    print("[{}]number of deadline made:    {}".format(reqtype, tot_made))
+    print("[{}]% of deadline missed:       {:.2f}".format(reqtype, (tot_miss)*100/tot_sent))
+    '''
     print("-----------------------------------------------------------")
 
 if __name__ == "__main__":
     s_file = 11211
     nb = int(sys.argv[1])
     dir = sys.argv[2]
-    parse_file(s_file, nb, "res", dir)
+    parse_file(s_file, nb, "set", dir)
+    parse_file(s_file, nb, "get", dir)
 

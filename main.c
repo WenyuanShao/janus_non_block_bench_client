@@ -1373,28 +1373,26 @@ void print_stats(void) {
       if (totals[t].nmeasured == 0) avg = 0;
       else avg = (uint64_t)(totals[t].rtt_total/totals[t].nmeasured/cpufreq);
       printf("\n\
-Request type   : %s\n\
-Requests sent  : %lu\n\
-Rate per second: %.0f\n\
-Measured RTTs  : %lu\n\
-RTT min/avg/max: %lu/%lu/%lu usec\n\
-Timeouts       : %lu\n\
-Errors         : %lu\n\
-Invalid replies: %lu\n\
-Ignored pkts   : %lu\n\
-Deadline made  : %lu\n",
-             reqtype_str[t],
-             totals[t].nsent,
-             (double)totals[t].nsent*1000000/elapsed_usec,
-             totals[t].nmeasured,
-             (uint64_t)(totals[t].rtt_min/cpufreq),
+%s sent        : %lu\n\
+%s Rate per second: %.0f\n\
+%s Measured RTTs  : %lu\n\
+%s RTT min/avg/max: %lu/%lu/%lu usec\n\
+%s Timeouts       : %lu\n\
+%s Errors         : %lu\n\
+%s Invalid replies: %lu\n\
+%s Ignored pkts   : %lu\n\
+%s Deadline made  : %lu\n",
+             reqtype_str[t], totals[t].nsent,
+             reqtype_str[t], (double)totals[t].nsent*1000000/elapsed_usec,
+             reqtype_str[t], totals[t].nmeasured,
+             reqtype_str[t], (uint64_t)(totals[t].rtt_min/cpufreq),
              avg,
              (uint64_t)(totals[t].rtt_max/cpufreq),
-             totals[t].ntimedout,
-             totals[t].nfailed,
-             totals[t].nbogus,
-             totals[t].nignore,
-		     totals[t].made);
+             reqtype_str[t], totals[t].ntimedout,
+             reqtype_str[t], totals[t].nfailed,
+             reqtype_str[t], totals[t].nbogus,
+             reqtype_str[t], totals[t].nignore,
+	     reqtype_str[t], totals[t].made);
     }
   }
 
@@ -1420,7 +1418,8 @@ Deadline made  : %lu\n",
 	  cnt = totals[0].nmeasured;
 
   for(i=1; i<cnt; i++) {
-    if (threads[0].stats[req_get].samples[i]) printf("RTT: %lu\n", threads[0].stats[req_get].samples[i]);
+    if (threads[0].stats[req_get].samples[i]) printf("get: %lu\n", threads[0].stats[req_get].samples[i]);
+    if (threads[0].stats[req_set].samples[i]) printf("set: %lu\n", threads[0].stats[req_get].samples[i]);
   }
 }
 
@@ -1432,6 +1431,7 @@ int main(int argc, char *argv[]) {
   in_addr_t hostaddr_in;
   pthread_attr_t tattr;
   int maxthreads;
+  int tot_rate;
 
   if (argc < 2)
     return usage();
@@ -1501,7 +1501,7 @@ int main(int argc, char *argv[]) {
       break;
 
     case 'r':
-      int tot_rate = atoi(optarg);
+      tot_rate = atoi(optarg);
       rates[req_get] = (int)tot_rate * 0.9;
       //rates[req_get] = 1;
       rates[req_set] = (int)tot_rate * 0.1;
