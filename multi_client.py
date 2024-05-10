@@ -6,16 +6,14 @@ cur_core = 0
 nb_cores = 1
 server = "10.10.1.2"
 t = 1
-k = 1
+k = 10000000
 z = 135
 d = 10
 #rate_base = 10;
 flow_per_core = 50
-rate = 500000
-#rate=[]
 
 class client(object):
-    def __init__(self, server_port, client_port, core):
+    def __init__(self, server_port, client_port, core, rate):
         self.server_port = server_port
         self.client_port = client_port
 
@@ -58,15 +56,21 @@ def increment_core_num(core):
     cur_core = (cur_core + 1) % nb_cores
     return p
 
-def start_clients(nb_nodes, server_port, client_port):
+def start_clients(nb_nodes, server_port, client_port, cps, rate):
     client_list=[]
+    itr = 0
+    base = server_port
     for _ in range(nb_nodes):
         nc = increment_core_num(0)
-        client_list.append(client(server_port, client_port, nc))
+        client_list.append(client(server_port, client_port, nc, rate))
 
         if client_port > 0 and server_port > 0:
             client_port += 1
-#            server_port += 1
+#            server_port = base + int((itr/cps))
+#            server_port = base
+            print(server_port)
+            itr += 1
+            server_port += 1
     return client_list
 
 def parse_args():
@@ -74,6 +78,8 @@ def parse_args():
     parser.add_argument("--nb_nodes", help="number of nodes", type=int)
     parser.add_argument("--nb_cores", help="number of cores", type=int)
     parser.add_argument("--server_port", help="the start of server port", type=int)
+    parser.add_argument("--cps", help="client per server", type=int)
+    parser.add_argument("--rate", help="requests per second per client", type=int)
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -81,12 +87,14 @@ if __name__ == '__main__':
     args = parse_args()
     server = "10.10.1.2"
     nb_nodes = args.nb_nodes if args.nb_nodes else 1
-    nb_cores = args.nb_cores if args.nb_cores else 4
-    server_port = args.server_port if args.server_port else 11212
+    nb_cores = args.nb_cores if args.nb_cores else 16
+    server_port = args.server_port if args.server_port else 11211
+    rate = args.rate if args.rate else 10000
     client_port = 11211
+    cps = args.cps if args.cps else 1
 
 #    for i in range(flow_per_core):
 #        rate.append(rate_base + i*10);
 
-    client_list = start_clients(nb_nodes, server_port, client_port)
+    client_list = start_clients(nb_nodes, server_port, client_port, cps, rate)
 

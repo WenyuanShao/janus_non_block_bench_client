@@ -34,14 +34,12 @@ def parse_file(head, number, reqtype, dir):
                 elif line.startswith(reqtype+" sent"):
                     temp = int(line.split(None)[-1].strip())
                     tot_sent += temp
-                '''
                 elif line.startswith(reqtype+" Deadline made"):
                     temp = int(line.split(None)[-1].strip())
                     tot_made += temp
                 elif line.startswith(reqtype+" Measured RTTs"):
                     temp = int(line.split(None)[-1].strip())
                     tot_recv += temp
-                '''
     tot.sort()
     tail = int(length*0.99)
     tot_drop = tot_sent-tot_recv
