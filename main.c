@@ -1502,9 +1502,9 @@ int main(int argc, char *argv[]) {
 
     case 'r':
       tot_rate = atoi(optarg);
-      //rates[req_get] = (int)tot_rate * 0.9;
-      rates[req_get] = tot_rate;
-      //rates[req_set] = (int)tot_rate * 0.1;
+      rates[req_get] = (int)tot_rate * 0.9;
+      //rates[req_get] = tot_rate;
+      rates[req_set] = (int)tot_rate * 0.1;
       if (tot_rate <= 0) {
         die("Invalid number of requests per second: %s\n", optarg);
       }
