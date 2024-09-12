@@ -7,14 +7,14 @@ nb_cores = 1
 server = "10.10.1.2"
 t = 1
 #k = 10000000
-k = 1
+k=1
 z = 135
 d = 10
 #rate_base = 10;
 flow_per_core = 50
 
 class client(object):
-    def __init__(self, server_port, client_port, core, rate):
+    def __init__(self, server_port, client_port, core, rate, key_group):
         self.server_port = server_port
         self.client_port = client_port
 
@@ -25,6 +25,7 @@ class client(object):
         self.args.extend(["-c", str(core)])
         self.args.extend(["./mcblaster"])
         self.args.extend(["-k", str(k)])
+        self.args.extend(["-a", str(key_group)])
         self.args.extend(["-t", str(t)])
         self.args.extend(["-z", str(z)])
         self.args.extend(["-u", str(server_port)])
@@ -57,13 +58,14 @@ def increment_core_num(core):
     cur_core = (cur_core + 1) % nb_cores
     return p
 
-def start_clients(nb_nodes, server_port, client_port, cps, rate):
+def start_clients(nb_nodes, server_port, client_port, cps, rate, kgroup):
     client_list=[]
     itr = 0
     base = server_port
+    k_group = 0
     for _ in range(nb_nodes):
         nc = increment_core_num(0)
-        client_list.append(client(server_port, client_port, nc, rate))
+        client_list.append(client(server_port, client_port, nc, rate, k_group))
 
         if client_port > 0 and server_port > 0:
             client_port += 1
@@ -71,7 +73,9 @@ def start_clients(nb_nodes, server_port, client_port, cps, rate):
 #            server_port = base
             print(server_port)
             itr += 1
-            server_port += 1
+            server_port += 6
+            if kgroup == 1:
+                k_group+=1
     return client_list
 
 def parse_args():
@@ -81,6 +85,7 @@ def parse_args():
     parser.add_argument("--server_port", help="the start of server port", type=int)
     parser.add_argument("--cps", help="client per server", type=int)
     parser.add_argument("--rate", help="requests per second per client", type=int)
+    parser.add_argument("--kgroup", help="using disjoint keys per core (0 or 1)", type=int)
     return parser.parse_args()
 
 if __name__ == '__main__':
@@ -93,9 +98,10 @@ if __name__ == '__main__':
     rate = args.rate if args.rate else 10000
     client_port = 11211
     cps = args.cps if args.cps else 1
+    kgroup = args.kgroup if args.kgroup else 0
 
 #    for i in range(flow_per_core):
 #        rate.append(rate_base + i*10);
 
-    client_list = start_clients(nb_nodes, server_port, client_port, cps, rate)
+    client_list = start_clients(nb_nodes, server_port, client_port, cps, rate, kgroup)
 

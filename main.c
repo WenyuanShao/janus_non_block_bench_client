@@ -194,6 +194,7 @@ static int port_udp, client_port_udp;
 static int nthreads;    /* number of threads to run */
 static int nconns=1;    /* number of connections each thread opens */
 static int nkeys=10000;
+static int key_group=0;
 static int nreplyports;
 static int rates[reqtype_n]; /* try to send this many
                                 sets and gets per second */
@@ -962,6 +963,9 @@ static inline int dgram_ap_send(dgram_ap_t *ap, reqtype_t t) {
 
   if (generation) k = (gl_ley++) % nkeys;
 
+  k=k+nkeys*key_group;
+//printf("key: %d\n", k);
+
   to_udp_header(buf, ap->reqs.nextrqid, nreplyports);
   
   if (t == req_get) {
@@ -1442,7 +1446,7 @@ int main(int argc, char *argv[]) {
         maxthreads);
   }
 
-  while ((opt=getopt(argc, argv, "p:u:c:d:k:nqr:s:t:w:x:z:f:g:i:")) != EOF) {
+  while ((opt=getopt(argc, argv, "p:u:c:d:k:nqr:s:t:w:x:z:f:g:i:a:")) != EOF) {
     switch (opt) {
 
     case 'p':
@@ -1488,6 +1492,14 @@ int main(int argc, char *argv[]) {
       }
       break;
 
+    case 'a':
+	key_group = atoi(optarg);
+      if (key_group < 0 || key_group>8) {
+        die("Invalid number of keys: %s. The number must be "
+            "between 1 and %d\n", optarg, MAXKEYS);
+	}
+      break;
+
     case 'n':
       nodelay = false;
       break;
@@ -1503,7 +1515,6 @@ int main(int argc, char *argv[]) {
     case 'r':
       tot_rate = atoi(optarg);
       rates[req_get] = (int)tot_rate * 0.9;
-      //rates[req_get] = tot_rate;
       rates[req_set] = (int)tot_rate * 0.1;
       if (tot_rate <= 0) {
         die("Invalid number of requests per second: %s\n", optarg);
