@@ -1,0 +1,14 @@
+ab arguments: ['taskset', '-c', '15', './mcblaster', '-k', '10000000', '-t', '1', '-z', '135', '-u', '21', '-f', '11226', '-r', '100000', '-d', '10', '10.10.1.2']
+
+STDOUT:
+bindto port: 11226
+
+get sent        : 998970
+get Rate per second: 100002
+get Measured RTTs  : 0
+get RTT min/avg/max: 8734047791048158/0/0 usec
+get Timeouts       : 933435
+get Errors         : 0
+get Invalid replies: 0
+get Ignored pkts   : 0
+get Deadline made  : 0

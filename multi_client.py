@@ -6,8 +6,7 @@ cur_core = 0
 nb_cores = 1
 server = "10.10.1.2"
 t = 1
-#k = 10000000
-k=1
+k = 10000000
 z = 135
 d = 10
 #rate_base = 10;
@@ -73,7 +72,7 @@ def start_clients(nb_nodes, server_port, client_port, cps, rate, kgroup):
 #            server_port = base
             print(server_port)
             itr += 1
-            server_port += 6
+            server_port += 1
             if kgroup == 1:
                 k_group+=1
     return client_list
