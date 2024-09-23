@@ -199,6 +199,7 @@ static int nreplyports;
 static int rates[reqtype_n]; /* try to send this many
                                 sets and gets per second */
 static unsigned long long deadline;
+static int multiget=0;
 static int spin_time=0;
 static int valsz=100;
 static int duration;    /* run duration in seconds */
@@ -561,7 +562,10 @@ static void conn_init(conn_t *conn, int maxoutstanding, int maxmsgsize,
 
 static inline int compose_get(char *buf, int bufsize, int k) {
 	//printf("aaaaaaaaaaaaa: %d\n", bufsize);
-  return snprintf(buf, bufsize, "get " KEYPREFIX "-%06d\r\n", k);
+  if (multiget)
+  	return snprintf(buf, bufsize, "get " KEYPREFIX "-%06d " KEYPREFIX "-%06d " KEYPREFIX "-%06d\r\n", k, k+1, k+2);
+  else
+  	return snprintf(buf, bufsize, "get " KEYPREFIX "-%06d\r\n", k);
 }
 
 static inline int compose_set(char *buf, int bufsize, int k) {
@@ -955,15 +959,15 @@ static inline int dgram_ap_events(dgram_ap_t *ap, struct pollfd *ufd) {
 /* Send a GET request for a random key into _ap_. Returns 0 if the request
    was successfully sent, otherwise returns -1. errno is set to EWOULDBLOCK
    if the request could not  */
-static inline int dgram_ap_send(dgram_ap_t *ap, reqtype_t t) {
+static inline int dgram_ap_send(dgram_ap_t *ap, reqtype_t t, int k) {
   char buf[256];
   int dgsize;
   int rv;
-  int k = random() % nkeys;
+  //int k = random() % nkeys;
 
   if (generation) k = (gl_ley++) % nkeys;
 
-  k=k+nkeys*key_group;
+//  k=k+nkeys*key_group;
 //printf("key: %d\n", k);
 
   to_udp_header(buf, ap->reqs.nextrqid, nreplyports);
@@ -973,7 +977,7 @@ static inline int dgram_ap_send(dgram_ap_t *ap, reqtype_t t) {
   } else {
 	  dgsize = compose_set(buf+8, sizeof(buf)-8, k) + 8;
   }
-  //printf("data: %s, size: %d\n", buf, dgsize);
+  //printf("data: %s, size: %d\n", buf+8, dgsize);
 
   rv = sendto(ap->s, buf, dgsize, 0,
               (struct sockaddr*)&hostaddr_udp, sizeof(hostaddr_udp));
@@ -1197,7 +1201,7 @@ static void thread_process_events(thread_t *th) {
 
 static int thread_init_keys(thread_t *th) {
   quantum_t q;
-  int initkey=0; /* next key to send an initialization 'set' for */
+  int initkey=nkeys*key_group; /* next key to send an initialization 'set' for */
   int nextconn=0; /* connection to send next TCP request into */
   int rv;
   uint64_t tstart = cycle_timer();
@@ -1216,12 +1220,13 @@ static int thread_init_keys(thread_t *th) {
     q.current = (cycle_timer() - tstart) / q.size;
 
     if (q.last < q.current) {
-      rv = conn_send(&th->conns[nextconn], req_set, initkey);
+      //rv = conn_send(&th->conns[nextconn], req_set, initkey);
+	rv = dgram_ap_send(&th->udp, req_set, initkey);
       if (rv == 0) { /* wrote a complete or partial message into socket */
         initkey = succ(initkey, nkeys);
         q.last++;
       }
-      nextconn = succ(nextconn, nconns);
+      //nextconn = succ(nextconn, nconns);
     }
 
     thread_process_events(th);
@@ -1254,7 +1259,8 @@ static void *thread_main(void *arg) {
      go over UDP, otherwise they, along with all the sets, are sent into
      the first TCP connection that has space in its socket sendbuf. */
 
-  if (rates[req_get] > 0 && port_tcp) {
+  //if (rates[req_get] > 0 && port_tcp) {
+  if (rates[req_get] > 0) {
     /* initialize keys if (1) we are going to send get requests and
        (2) we will have a TCP connection to send initial sets through. */
     rv = thread_init_keys(th);
@@ -1263,6 +1269,7 @@ static void *thread_main(void *arg) {
       return NULL;
     }
   }
+  printf("init key done\n");
 
   /* done with initialization, on to the main loop */
 
@@ -1279,7 +1286,8 @@ static void *thread_main(void *arg) {
         q[t].current = (cycle_timer() - th->tstart) / q[t].size;
         if (q[t].last < q[t].current) {
           if (th->udp.s >= 0) {
-		  rv = dgram_ap_send(&th->udp, t);
+  	          int k = random() % nkeys;
+		  rv = dgram_ap_send(&th->udp, t, k);
 		}
           else {
 		  assert(0);
@@ -1380,7 +1388,7 @@ void print_stats(void) {
 %s sent        : %lu\n\
 %s Rate per second: %.0f\n\
 %s Measured RTTs  : %lu\n\
-%s RTT min/avg/max: %lu/%lu/%lu usec\n\
+%s RTT min/avg/max: %lu/%lu/%lu\n\
 %s Timeouts       : %lu\n\
 %s Errors         : %lu\n\
 %s Invalid replies: %lu\n\
@@ -1423,7 +1431,7 @@ void print_stats(void) {
 
   for(i=1; i<cnt; i++) {
     if (threads[0].stats[req_get].samples[i]) printf("get: %lu\n", threads[0].stats[req_get].samples[i]);
-    if (threads[0].stats[req_set].samples[i]) printf("set: %lu\n", threads[0].stats[req_get].samples[i]);
+    if (threads[0].stats[req_set].samples[i]) printf("set: %lu\n", threads[0].stats[req_set].samples[i]);
   }
 }
 
@@ -1446,7 +1454,7 @@ int main(int argc, char *argv[]) {
         maxthreads);
   }
 
-  while ((opt=getopt(argc, argv, "p:u:c:d:k:nqr:s:t:w:x:z:f:g:i:a:")) != EOF) {
+  while ((opt=getopt(argc, argv, "p:u:c:d:k:nqr:s:t:w:x:z:f:g:i:a:m")) != EOF) {
     switch (opt) {
 
     case 'p':
@@ -1500,6 +1508,10 @@ int main(int argc, char *argv[]) {
 	}
       break;
 
+    case 'm':
+      multiget = 1;
+      break;
+
     case 'n':
       nodelay = false;
       break;
@@ -1514,8 +1526,9 @@ int main(int argc, char *argv[]) {
 
     case 'r':
       tot_rate = atoi(optarg);
-      rates[req_get] = (int)tot_rate * 0.9;
-      rates[req_set] = (int)tot_rate * 0.1;
+      //rates[req_get] = (int)tot_rate * 0.9;
+      rates[req_get] = (int)tot_rate;
+      //rates[req_set] = (int)tot_rate * 0.1;
       if (tot_rate <= 0) {
         die("Invalid number of requests per second: %s\n", optarg);
       }
