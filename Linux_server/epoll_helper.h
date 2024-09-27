@@ -32,7 +32,7 @@
 **/
 int setnonblocking(int sockfd)
 {
-    fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFD, 0)| O_NONBLOCK);
+    fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0)| O_NONBLOCK);
     return 0;
 }
  
@@ -46,9 +46,9 @@ void addfd( int epollfd, int fd)
     struct epoll_event ev;
     int ret;
     ev.data.fd = fd;
-    ev.events = EPOLLIN;
     
-    ev.events = EPOLLIN | EPOLLET;
+    //ev.events = EPOLLIN | EPOLLET;
+    ev.events = EPOLLIN;
     ret = epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
 	assert(!ret);
     setnonblocking(fd);

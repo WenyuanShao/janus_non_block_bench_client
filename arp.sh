@@ -1,4 +1,4 @@
 #!/bin/bash
 
-sudo ifconfig enp5s0 10.10.1.1
-sudo arp -s 10.10.1.2 2c:94:64:07:99:02
+sudo ifconfig enp1s0f0 10.10.1.2
+sudo arp -s 10.10.1.1 80:61:5f:06:0f:a3

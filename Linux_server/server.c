@@ -13,8 +13,9 @@
 #include <linux/sched.h>
 #include <sched.h>
 #include <sys/types.h>
+#include <ctype.h>
 
-#define MAX_LEN 128
+#define MAX_LEN 1024
 #define HI_STIME 5000
 #define LO_STIME 20
 #define DL_HI 500*1000
@@ -22,8 +23,8 @@
 #define __NR_sched_setattr 314
 #define __NR_sched_getattr 315
 
-static int numget = 3;
-int reqcnt[2][1000000];
+static int numget = 1;
+int reqcnt[2][65536];
 
 struct sched_attr {
 	uint32_t size;
@@ -134,25 +135,26 @@ is_set(void* data) {
 int
 handle_ekf(int outfd)
 {
-
 	char data[MAX_LEN];
+	char *body;
 	int len, nfds;
 	struct sockaddr_in clientAddr;
 	struct sockaddr_in memcachedAddr;
 	struct epoll_event events[EPOLL_SIZE];
 	int isSet = 0;
 	int key;
+	int cnt;
 
 	memset(&clientAddr, 0, sizeof(clientAddr));
-	//clientAddr.sin_addr.s_addr = inet_addr("10.10.1.1");;
-	clientAddr.sin_addr.s_addr = inet_addr("127.0.0.1");;
+	clientAddr.sin_addr.s_addr = inet_addr("10.10.1.1");;
+	//clientAddr.sin_addr.s_addr = inet_addr("127.0.0.1");;
 	clientAddr.sin_port = htons(server_port);
 	clientAddr.sin_family = AF_INET;
 	socklen_t cliLen = sizeof(clientAddr);
 
 	memset(&memcachedAddr, 0, sizeof(memcachedAddr));
-	//memcachedAddr.sin_addr.s_addr = inet_addr("10.10.1.2");;
-	memcachedAddr.sin_addr.s_addr = inet_addr("127.0.0.1");;
+	memcachedAddr.sin_addr.s_addr = inet_addr("10.10.1.2");;
+	//memcachedAddr.sin_addr.s_addr = inet_addr("127.0.0.1");;
 	memcachedAddr.sin_port = htons(11211);
 	memcachedAddr.sin_family = AF_INET;
 	socklen_t memcachedLen = sizeof(memcachedAddr);
@@ -178,34 +180,54 @@ handle_ekf(int outfd)
 		}
 		for (int i = 0; i < nfds; i++) {
 			if (events[i].events & EPOLLIN) {
-				printf("epoll someting\n");
+				//printf("epoll someting\n");
 				if (events[i].data.fd == outfd) {
-					printf("recvfrom out\n");
+					//printf("recvfrom out\n");
+					while (1) {
 					len = recvfrom(outfd, data, MAX_LEN, 0, (struct sockaddr*)&clientAddr, &cliLen);
-					assert(len > 0);
-					
-					isSet = is_set(data);
-					key = atoi(data+14);
+					if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) break;
+					/*printf("szie: %d, reqid: %d, seqid: %d, frag: %d, res: %d, len: %d\n",
+						       	sizeof(udphdr_t), 
+							ntohs(((udphdr_t*)data)->rqid), 
+							ntohs(((udphdr_t*)data)->partno),
+							ntohs(((udphdr_t*)data)->nparts),
+							ntohs(((udphdr_t*)data)->reserved), len);*/
+					//body = data+sizeof(udphdr_t);
+					//aisSet = is_set(body);
+					//key = atoi(body+14);
+					/*printf("%s, len: %d\n", body, len);
+					for (int j = 0; j < 200; j++) {
+						if (j==128) printf("!!!");
+						if (body[j] == '\r')
+							printf("\\r");
+						else if (body[j] == '\n')
+							printf("\\n");
+		//				else if (isprint(body[j]))
+		//					printf("%c", body[j]);
+						else
+							printf("%02x ", (unsigned char)body[j]);
+					}
+					printf("\n");*/
 					for (int j = 0; j < numget; j++) {
-						len = sendto(memsockfd, data, MAX_LEN, 0, (struct sockaddr*)&memcachedAddr, memcachedLen);
+						len = sendto(memsockfd, data, len, 0, (struct sockaddr*)&memcachedAddr, memcachedLen);
 						assert(len > 0);
-						reqcnt[isSet][key] ++;
+						reqcnt[0][ntohs(((udphdr_t*)data)->rqid)] ++;
+					}
 					}
 				}
 				if (events[i].data.fd == memsockfd) {
-					printf("recvfrom memcached\n");
-					len = recvfrom(memsockfd, data, MAX_LEN, 0, (struct sockaddr*)&memcachedAddr, &memcachedLen);
-					assert(len > 0);
-					isSet = is_set(data);
-					key = atoi(data+14);
-					if (reqcnt[isSet][key] > 3) {
-						len = sendto(outfd, data, MAX_LEN, 0, (struct sockaddr*)&clientAddr, cliLen);
+					//printf("recvfrom memcached\n");
+					while(1) {
+						len = recvfrom(memsockfd, data, MAX_LEN, 0, (struct sockaddr*)&memcachedAddr, &memcachedLen);
+						if (len == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) break;
+					body = data+sizeof(udphdr_t);
+					printf("-");
+					if (reqcnt[0][ntohs(((udphdr_t*)data)->rqid)] >= numget) {
+						printf(".");
+						len = sendto(outfd, data, len, 0, (struct sockaddr*)&clientAddr, cliLen);
 						assert(len > 0);
-						reqcnt[isSet][key] -= 4;
-					} else {
-						len = sendto(memsockfd, data, MAX_LEN, 0, (struct sockaddr*)&memcachedAddr, memcachedLen);
-						assert(len > 0);
-						reqcnt[isSet][key] ++;
+						reqcnt[0][ntohs(((udphdr_t*)data)->rqid)] -= numget;
+					}
 					}
 				}
 			}
@@ -241,8 +263,8 @@ main(int argc, char *argv[]) {
 	memset(&serverAddr, 0, sizeof(serverAddr));
 	serverAddr.sin_family = PF_INET;
    	serverAddr.sin_port = htons(server_port);
-   	//serverAddr.sin_addr.s_addr = inet_addr("10.10.1.2");
-   	serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+   	serverAddr.sin_addr.s_addr = inet_addr("10.10.1.2");
+   	//serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
 	
    	int listener = socket(AF_INET, SOCK_DGRAM, 0);
 

@@ -23,7 +23,7 @@ class client(object):
 #       self.rate = rate[index]
 
         self.args = ["taskset"]
-        self.args.extend(["-c", str(core)])
+        self.args.extend(["-c", "0-7"])
         self.args.extend(["memcached"])
         self.args.extend(["--listen",str(server)])
         self.args.extend(["--port",str(tcp_port)])
