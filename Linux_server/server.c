@@ -14,6 +14,7 @@
 #include <sched.h>
 #include <sys/types.h>
 #include <ctype.h>
+#include <pthread.h>
 
 #define MAX_LEN 1024
 #define HI_STIME 5000
@@ -22,6 +23,8 @@
 #define DL_LO 5*1000
 #define __NR_sched_setattr 314
 #define __NR_sched_getattr 315
+
+#define SERVER_IP "10.10.1.2"
 
 static int numget = 1;
 int reqcnt[2][65536];
@@ -252,13 +255,107 @@ getopts(int argc, char** argv)
 	}
 }
 
+void*
+forward_thread(void* arg)
+{
+	int sockfd = *(int*)arg;
+	char buffer[MAX_LEN];
+	struct sockaddr_in cli_addr, forward_addr;
+	socklen_t len = sizeof(cli_addr);
+	int n;
+
+	int forward_sockfd = socket(AF_INET, SOCK_DGRAM, 0);  // Socket for forwarding
+	if (forward_sockfd < 0) {
+		perror("Forward socket creation failed");
+		exit(EXIT_FAILURE);
+	}
+
+	memset(&forward_addr, 0, sizeof(forward_addr));
+	forward_addr.sin_family = AF_INET;
+	forward_addr.sin_port = htons(11211);
+	forward_addr.sin_addr.s_addr = inet_addr(SERVER_IP); // Forward to the local function
+
+	while (1) {
+		n = recvfrom(sockfd, (char *)buffer, MAX_LEN, 0, (struct sockaddr *) &cli_addr, &len);
+		if (n < 0) {
+    			perror("recvfrom failed");
+			continue;
+		}
+		sendto(forward_sockfd, (const char *)buffer, n, 0, (const struct sockaddr *) &forward_addr, sizeof(forward_addr));
+	}
+	return NULL;
+}
+
+void*
+transmit_thread(void* arg)
+{
+	int sockfd = *(int*)arg;
+	char buffer[MAX_LEN];
+	struct sockaddr_in cli_addr;
+	socklen_t len = sizeof(cli_addr);
+	int n;
+
+	while (1) {
+		n = recvfrom(sockfd, (char *)buffer, MAX_LEN, 0, (struct sockaddr *) &cli_addr, &len);
+		if (n < 0) {
+    			perror("recvfrom failed");
+    			continue;
+		}
+		sendto(sockfd, (const char *)buffer, n, 0, (const struct sockaddr *) &cli_addr, len);
+	}
+	return NULL;
+}
+
+int
+setupsocket(int port, char* ip)
+{
+	int sockfd;
+	struct sockaddr_in addr;
+
+	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+		perror("socket creation failed");
+		exit(EXIT_FAILURE);
+	}
+
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = inet_addr(ip);
+	addr.sin_port = htons(port);
+
+	if (bind(sockfd, (const struct sockaddr *)&addr, sizeof(addr)) < 0) {
+		perror("bind failed");
+		exit(EXIT_FAILURE);
+	}
+
+	return sockfd;
+}
+
 int 
 main(int argc, char *argv[]) {
 
 	struct    sockaddr_in serverAddr;
+	pthread_t thread1, thread2;
 	
+
 	if (argc > 1)
 		getopts(argc, argv);
+
+	int sockfd = setupsocket(6, SERVER_IP);
+	int memcachedfd = setupsocket(11211, SERVER_IP);
+
+	if (pthread_create(&thread1, NULL, forward_thread, &sockfd) != 0) {
+		perror("thread create failed\n");
+		return 1;
+	}
+	if (pthread_create(&thread2, NULL, transmit_thread, &memcachedfd) != 0) {
+		perror("thread create failed\n");
+		return 1;
+	}
+
+	pthread_join(thread1, NULL);
+	pthread_join(thread2, NULL);
+
+	return 0;
 
 	memset(&serverAddr, 0, sizeof(serverAddr));
 	serverAddr.sin_family = PF_INET;
